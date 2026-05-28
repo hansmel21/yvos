@@ -1,12 +1,14 @@
 // ============================================================
 //  YVOSSetup.cs  —  EDITOR ONLY
-//  One-click setup for the YVOS project.
+//  Auto-runs on script reload AND as manual menu items.
 //
-//  Menu: YVOS → Setup → Create All Assets
-//         YVOS → Setup → Build GameScene
+//  Auto-behaviour: when Unity reloads scripts (e.g. after a
+//  git pull), it checks for missing assets and creates them.
+//  Scene is NOT auto-rebuilt (too destructive) — run the
+//  menu item once manually after first clone.
 //
-//  Run "Create All Assets" first (creates SOs in Data/),
-//  then "Build GameScene" (creates the scene hierarchy).
+//  Menu: YVOS → Setup → 1 - Create All Assets
+//         YVOS → Setup → 2 - Build GameScene
 // ============================================================
 using System.IO;
 using UnityEditor;
@@ -22,8 +24,32 @@ using YVOS.Career;
 
 namespace YVOS.Editor
 {
+    [InitializeOnLoad]
     public static class YVOSSetup
     {
+        // ================================================================
+        //  Auto-run on every script reload
+        //  Skips gracefully if assets already exist.
+        // ================================================================
+        static YVOSSetup()
+        {
+            // Defer one frame so the AssetDatabase is fully ready
+            EditorApplication.delayCall += AutoSetupIfNeeded;
+        }
+
+        static void AutoSetupIfNeeded()
+        {
+            bool balanceMissing = AssetDatabase.LoadAssetAtPath<Data.GameBalanceSO>("Assets/Data/GameBalance.asset") == null;
+            bool eventsMissing  = !AssetDatabase.IsValidFolder("Assets/Data/Events/Resources/Events/Common") ||
+                                   AssetDatabase.FindAssets("t:LifeEventSO", new[] { "Assets/Data" }).Length == 0;
+
+            if (balanceMissing || eventsMissing)
+            {
+                Debug.Log("[YVOS] New or missing assets detected — running auto-setup...");
+                CreateAllAssets();
+            }
+        }
+
         // ================================================================
         //  MENU: Create All ScriptableObject Assets
         // ================================================================
